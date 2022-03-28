@@ -39,9 +39,9 @@
             // 
             // serviceInstaller1
             // 
-            this.serviceInstaller1.Description = "Automated push and pull of EDI files";
-            this.serviceInstaller1.DisplayName = "EDI FTP Service";
-            this.serviceInstaller1.ServiceName = "EDI_FTP";
+            this.serviceInstaller1.Description = "Automated push and pull of iConnect FTP EDI files";
+            this.serviceInstaller1.DisplayName = "iConnectFTP Service";
+            this.serviceInstaller1.ServiceName = "iConnect_FTP";
             this.serviceInstaller1.StartType = System.ServiceProcess.ServiceStartMode.Automatic;
             // 
             // ProjectInstaller

@@ -9,14 +9,14 @@ using System.Net;
 using System.ServiceProcess;
 using System.Timers;
 
-namespace EDI_FTP
+namespace iConnectFTP
 {
     public partial class FTPService : ServiceBase
     {
         #region module level declarations
 
         private const string CONN_STRING = "server=Erp-sql;database=BigAssFans;uid=WebService;password=MKhZx0_N";
-        private const string PROGRAM_NAME = "SterlingEDI";
+        private const string PROGRAM_NAME = "IConnectFTP";
         private const string MODE = "Common"; // "Test" for testing, "Common" for production
 
         private Timer _t;
@@ -151,9 +151,14 @@ namespace EDI_FTP
 
         private void ProcessFiles()
         {
-            DirectoryInfo ediPull = new DirectoryInfo(_ediPull);
+            base.EventLog.WriteEntry($"Variables used for Directories .\r\n\r\n pull:{_ediPull} push:{_ediPush} archivepath:{_archivePath}", EventLogEntryType.Information);
+            
+            DirectoryInfo ediPull = null;
             DirectoryInfo ediPush = new DirectoryInfo(_ediPush);
             DirectoryInfo archive = new DirectoryInfo(_archivePath);
+
+            base.EventLog.WriteEntry($"File returned from current EDI Path:.\r\n\r\n {ediPush.EnumerateFiles("*", SearchOption.TopDirectoryOnly).ToList()}", EventLogEntryType.Information);
+           
 
             if (ediPush.Exists)
             {
@@ -164,13 +169,18 @@ namespace EDI_FTP
                 {
                     wc.Credentials = new NetworkCredential(_ftpUsername, _ftpPassword);
 
+
                     ediPush.EnumerateFiles("*", SearchOption.TopDirectoryOnly).ToList().ForEach(f =>
+
                     {
                         bool failed = false;
 
                         try
                         {
-                            wc.UploadFile(Path.Combine(_ftpAddress, _ftpPushFolder, f.Name), f.FullName);
+                            base.EventLog.WriteEntry($"Starting Upload of Files to {_ftpAddress}\r\n\r\n", EventLogEntryType.Information);
+                            base.EventLog.WriteEntry($"Combined path: {Path.Combine(_ftpAddress, _ftpPushFolder, f.Name)+ f.FullName}\r\n\r\n", EventLogEntryType.Information);
+                            // Waiting to see if Files will need to have spaces removed, added ftp:// as it is needed to send off
+                            wc.UploadFile(_ftpAddress + f.Name, f.FullName);
                         }
                         catch (Exception ex)
                         {
@@ -180,7 +190,10 @@ namespace EDI_FTP
                         }
 
                         if (!failed)
+                        {
+                            base.EventLog.WriteEntry($"Starting Upload of Files....\r\n\r\n", EventLogEntryType.Information);
                             f.MoveTo(Path.Combine(_archivePath, GetFileName(f.Name)));
+                        }
                     });
                 }
             }

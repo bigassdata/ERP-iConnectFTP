@@ -1,6 +1,6 @@
 ﻿using System.ServiceProcess;
 
-namespace EDI_FTP
+namespace iConnectFTP
 {
     static class Program
     {
@@ -12,7 +12,7 @@ namespace EDI_FTP
             ServiceBase[] ServicesToRun;
             ServicesToRun = new ServiceBase[]
             {
-                new FTPService()
+                new iConnectFTP.FTPService()
             };
             ServiceBase.Run(ServicesToRun);
         }

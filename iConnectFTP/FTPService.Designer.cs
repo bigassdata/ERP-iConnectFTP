@@ -1,4 +1,4 @@
-﻿namespace EDI_FTP
+﻿namespace iConnectFTP
 {
     partial class FTPService
     {
