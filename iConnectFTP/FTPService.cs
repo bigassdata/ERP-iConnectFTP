@@ -29,6 +29,8 @@ namespace iConnectFTP
         private string _ftpPushFolder = "";
         private string _ftpUsername = "DEL12434";
         private string _ftpPassword = "IN10467";
+        private int _file_count = 0;
+
 
         #endregion
 
@@ -153,40 +155,68 @@ namespace iConnectFTP
         {
             base.EventLog.WriteEntry($"Variables used for Directories .\r\n\r\n pull:{_ediPull} push:{_ediPush} archivepath:{_archivePath}", EventLogEntryType.Information);
             
+            // setting ediPull to null at this time as script is only being used for ediPush
             DirectoryInfo ediPull = null;
             DirectoryInfo ediPush = new DirectoryInfo(_ediPush);
             DirectoryInfo archive = new DirectoryInfo(_archivePath);
 
             base.EventLog.WriteEntry($"File returned from current EDI Path:.\r\n\r\n {ediPush.EnumerateFiles("*", SearchOption.TopDirectoryOnly).ToList()}", EventLogEntryType.Information);
-           
+            base.EventLog.WriteEntry($"Starting Upload of Files to {_ftpAddress}\r\n\r\n", EventLogEntryType.Information);
 
-            if (ediPush.Exists)
+
+            // loop that checks for items in the directory and increments the _file_count property so we can add logic that controls when to process files.
+            ediPush.EnumerateFileSystemInfos().ToList().ForEach(file_sytem_info =>
+
+            {
+                base.EventLog.WriteEntry($"File_sytem_info: {file_sytem_info}", EventLogEntryType.Information);
+                _file_count++;
+            });
+
+            base.EventLog.WriteEntry($"File Count:{_file_count}", EventLogEntryType.Information);
+
+            // if only file in dir is the archive dir, setting ediPush object to null so we don't execute the file Process
+            if (_file_count <= 1)
+            {
+                base.EventLog.WriteEntry($"No files outside of normal Archive dir, skipping upload...", EventLogEntryType.Information);
+                ediPush = null;
+            }
+                
+
+            // Begin process of files if and EDIPush folder is identified in the data returned from the database
+            if (ediPush!=null)
             {
                 if (!archive.Exists)
                     archive.Create();
+
+                base.EventLog.WriteEntry($"Push folder identified and file_count over 1, processing FTP files...", EventLogEntryType.Information);
 
                 using (WebClient wc = new WebClient())
                 {
                     wc.Credentials = new NetworkCredential(_ftpUsername, _ftpPassword);
 
+                    base.EventLog.WriteEntry($"Established WebClient connection, attempting to parse EDI folder for ftp files....", EventLogEntryType.Information);
 
+
+                    //Logic may need to be added here before enumerating directory to account for if the directory is empty and no processing is needed.
                     ediPush.EnumerateFiles("*", SearchOption.TopDirectoryOnly).ToList().ForEach(f =>
 
                     {
                         bool failed = false;
 
+                        base.EventLog.WriteEntry($"Looping through enumerable collection....", EventLogEntryType.Information);
+
                         try
                         {
-                            base.EventLog.WriteEntry($"Starting Upload of Files to {_ftpAddress}\r\n\r\n", EventLogEntryType.Information);
-                            base.EventLog.WriteEntry($"Combined path: {Path.Combine(_ftpAddress, _ftpPushFolder, f.Name)+ f.FullName}\r\n\r\n", EventLogEntryType.Information);
-                            // Waiting to see if Files will need to have spaces removed, added ftp:// as it is needed to send off
+                            
+                            base.EventLog.WriteEntry($"Combined path w/ file name: {Path.Combine(_ftpAddress, _ftpPushFolder, f.Name)+ f.FullName}\r\n\r\n", EventLogEntryType.Information);
+                           // Note FTP addresses need to be URI encoded, WC takes care of filepaths when specifying the file to upload.
                             wc.UploadFile(_ftpAddress + f.Name, f.FullName);
                         }
                         catch (Exception ex)
                         {
                             failed = true;
 
-                            base.EventLog.WriteEntry(ex.Message, EventLogEntryType.Error);
+                            base.EventLog.WriteEntry($"Error when attempting to upload {f.Name}, error message: {ex.Message}", EventLogEntryType.Error);
                         }
 
                         if (!failed)
@@ -199,10 +229,12 @@ namespace iConnectFTP
             }
             else
             {
-                base.EventLog.WriteEntry("No EDI push folder exists at path " + _ediPush + ". There are no files to process.", EventLogEntryType.Warning);
+                base.EventLog.WriteEntry("No files in specified EDI folder, nothing to upload, skipping workload....", EventLogEntryType.Warning);
+                // resetting _file_count property for next run-time
+                _file_count = 0;
             }
 
-            if (ediPull.Exists)
+            if (ediPull!=null)
             {
                 List<string> files = new List<string>();
                 FtpWebRequest ftpRequest = (FtpWebRequest)WebRequest.Create(Path.Combine(_ftpAddress, _ftpPullFolder));
